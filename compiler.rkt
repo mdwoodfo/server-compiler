@@ -7,6 +7,8 @@
          parser-tools/lex
          (prefix-in : parser-tools/lex-sre))
 
+(provide comp)
+
 ;; -------------------
 ;; Zero Page Locations
 ;; -------------------
@@ -46,8 +48,8 @@
 (define ADD #xF000)
 (define SUBTRACT #xF00E)
 
-(define-tokens value-tokens (NUM VAR FNCT))
-(define-empty-tokens op-tokens (newline = OP CP + - * / ^ EOF NEG))
+(define-tokens value-tokens (NUM VAR FNCT LOCALDEC STMTLST VARDEC STMT))
+(define-empty-tokens op-tokens (newline = OP CP OB CB + - * / ^ EOF NEG TYPE PARAMS))
 
 ;; A hash table to store variable values in for the calculator
 (define vars (make-hash))
@@ -72,6 +74,9 @@
    [(:or "=" "+" "-" "*" "/" "^") (string->symbol lexeme)]
    ["(" 'OP]
    [")" 'CP]
+   ["{" 'OB]
+   ["}" 'CB]
+   [(:or "int" "void") 'TYPE]
    ["sin" (token-FNCT sin)]
    [(:+ (:or lower-letter upper-letter)) (token-VAR (string->symbol lexeme))]
    [(:+ digit) (token-NUM (string->number lexeme))]
@@ -93,8 +98,15 @@
            ;; If there is an error, ignore everything before the error
            ;; and try to start over right after the error
            [(error start) $2]
-           [(exp) $1])    
-    (exp [(NUM) (let-values ([(lo hi hexLo hexHi) (int->16bit $1)])
+           [(exp) $1])
+
+    (fun-declaration [(TYPE VAR OP params CP OB localdec stmtlst CB) (printf "funct")])
+    (params [(TYPE) (printf "params")])
+    (localdec [(VAR = exp) (printf "localdec")])
+    (stmtlst [() (printf "stmtlst")])
+    
+    (exp
+     [(NUM) (let-values ([(lo hi hexLo hexHi) (int->16bit $1)])
                   ;; Assembly Code
                   ;; Push number onto stack
 ;                  (printf "LDA #$~a~n" hexHi)
@@ -221,7 +233,6 @@
          [(exp * exp) (* $1 $3)]
          [(exp / exp) (/ $1 $3)]
          [(- exp) (prec NEG) (- $2)]
-         [(exp ^ exp) (expt $1 $3)]
          [(OP exp CP) $2]))))
 
 ;; -------------------------------
@@ -264,8 +275,9 @@
    3))
 
 ;; run the calculator on the given input-port       
-(define (calc ip)
+(define (comp ip op)
 ;  (display "*=$D000")
+  (current-output-port op)
   (display "D000") ;; NOT LITTLE-ENDIAN!!!!!
   (newline)
   (port-count-lines! ip)
@@ -294,7 +306,12 @@
 ;  (display ".end")
   (display "FFFFFF") ;; Hex 02
 ;  (newline)
+  (flush-output op)
   )
 
 ;; Some examples
-(calc (open-input-string "a=1\nb=1234\na + (b - 20)"))
+;(comp (open-input-string "a=1\nb=1234\na + (b - 20)"))
+
+(define (compile-file source object)
+  (comp (open-input-file source)
+        (open-output-file object #:mode 'text #:exists 'replace)))
