@@ -35,3 +35,7 @@
   ;(display "Server: k\r\nContent-Type: text/html\r\n\r\n" out)
   ;(display "<html><body>Hello, world!</body></html>" out)
   )
+
+(define (launch-server port)
+  (serve port))
+  

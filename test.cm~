@@ -1,6 +1,0 @@
-void main(void)
-{
-    int x;
-    int fuck;
-    x=42;
-}
