@@ -3,7 +3,5 @@ void main(void)
     int x;
     int y;
     int z;
-    x = 42;
-    y = 3;
-    z = x + y;
+    y = 4;
 }

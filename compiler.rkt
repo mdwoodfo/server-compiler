@@ -136,17 +136,73 @@
            [(-) (printf "addop->-\n")])
     (add-exp [(add-exp addop term) (printf "addexp->add-exp-addop-term\n")]
              [(term) (printf "add-exp->term\n")])
+    (subexp [(term - term)(printf "subexp->term - term\n")])
+    (subtraction-exp [(subtraction-exp + subexp)(printf "subtraction-exp->subtraction-exp + subexp\n")]
+                  [(subexp)(printf "subtraction-exp->subexp\n")])
+    (addexp [(term + term)(printf "addexp->term + term\n")])
+    (addition-exp [(addition-exp + addexp)(printf "addition-exp->addition-exp + addexp\n")]
+                  [(addexp)(printf "addition-exp->addexp\n")])
+    (addsub [(addition-exp)(printf "addsub->addition-exp\n")]
+            [(subtraction-exp)(printf "addsub->subtraction-exp\n")]
+            [(term)(printf "addsub->term\n")])
     (relop [(LTE) (printf "")]
            [(LT) (printf "")]
            [(GT) (printf "")]
            [(GTE) (printf "")]
            [(EE) (printf "")]
            [(NE) (printf "")])
-    (simple-exp [(add-exp relop add-exp) (printf "simple-exp->addexp-relop-addexp\n")]
-                [(add-exp) (printf "simple-exp->addexp\n")])
-    (var [(VAR) (printf "var->VAR\n")]
+    (simple-exp [(addsub relop addsub) (printf "simple-exp->addsub_relop_addsub\n")]
+                [(addsub) (printf "simple-exp->addsub\n")])
+    (var [(VAR) (begin
+              ;; Assembly Code
+              ;; Retrieve variable value from Symbol Table
+              ;; Push value onto Stack
+;                  (printf "LDX #$~a~n" (8bit->hex (symbol->var-lookup $1)))
+;                  (printf "INX~n")
+;                  (printf "INX~n")
+;                  (printf "LDA *$~a,X~n" (8bit->hex VARS))
+;                  (printf "PHA~n")
+;                  (printf "DEX~n")
+;                  (printf "LDA *$~a,X~n" (8bit->hex VARS))
+;                  (printf "PHA~n")
+              (printf "A2 ~a E8 E8 B5 ~a 48 CA B5 ~a 48 " 
+                      (8bit->hex (symbol->var-lookup $1))
+                      (8bit->hex VARS)
+                      (8bit->hex VARS))
+              (hash-ref vars $1 (lambda () 0)))]
          [(VAR OSB exp CSB) (printf "var->VAR(exp)\n")])
-    (exp [(var = exp) (printf "exp->var=exp\n")]
+    (exp [(var = exp) (printf "exp->var = exp\n$1=~a $3=~a\n" $1 $3) ;(let-values ([(lo hi hexLo hexHi) (int->16bit $3)])
+                        ;; Assembly Code
+                        ;; Pull right-hand expression off Stack
+;                        (printf "PLA~n")
+;                        (printf "STA *$~a~n" (8bit->hex WORK1LO))
+;                        (printf "PLA~n")
+;                        (printf "STA *$~a~n" (8bit->hex WORK1HI))
+                    ;(printf "68 85 ~a 68 85 ~a " 
+                    ;        (8bit->hex WORK1LO)
+                    ;        (8bit->hex WORK1HI))
+                        ;; Lookup variable location in Symbol Table
+                        ;; Store expression value in variable
+                        ;; Push value onto Stack
+;                        (printf "LDX #$~a~n" (8bit->hex (symbol->var-lookup $1)))
+;                        (printf "INX~n")
+;                        (printf "INX~n")
+;                        (printf "LDA *$~a~n" (8bit->hex WORK1HI))
+;                        (printf "STA *$~a,X~n" (8bit->hex VARS))
+;                        (printf "PHA~n")
+;                        (printf "DEX~n")
+;                        (printf "LDA *$~a~n" (8bit->hex WORK1LO))
+;                        (printf "STA *$~a,X~n" (8bit->hex VARS))
+;                        (printf "PHA~n")
+                    ;(printf "A2 ~a E8 E8 A5 ~a 95 ~a 48 CA A5 ~a 95 ~a 48 " 
+                    ;        (8bit->hex (symbol->var-lookup $1))
+                    ;        (8bit->hex WORK1HI)
+                    ;        (8bit->hex VARS)
+                    ;        (8bit->hex WORK1LO)
+                    ;        (8bit->hex VARS))
+                    ;(hash-set! vars $1 $3)
+                    ;$3)
+                      ]
          [(simple-exp) (printf "exp->simpleexp\n")])
     (return-stmt [(RETURN SEMI) (printf "")]
                  [(RETURN exp SEMI) (printf "")])
