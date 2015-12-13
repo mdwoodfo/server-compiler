@@ -1,0 +1,64 @@
+#lang racket
+(require parser-tools/yacc
+         parser-tools/lex
+         (prefix-in : parser-tools/lex-sre))
+
+(define-tokens value-tokens (NUM VAR FNCT))
+(define-empty-tokens op-tokens (newline = OP CP OB CB OSB CSB + - * / ^ SEMI EOF NEG TYPE))
+
+(define-lex-abbrevs
+  (lower-letter (:/ "a" "z"))
+  (upper-letter (:/ #\A #\Z))
+  ;; (:/ 0 9) would not work because the lexer does not understand numbers.
+  ;; But (:/ #\0 #\9) is ok.
+  (digit (:/ "0" "9")))
+
+(define calcl
+  (lexer
+   [(eof) 'EOF]
+   ;; recursively call the lexer on the remaining input after a tab or space.
+   ;; Returning the result of that operation.  
+   ;; This effectively skips all whitespace.
+   [(:or #\tab #\space) (calcl input-port)]
+   ;; (token-newline) returns 'newline
+   [#\newline (token-newline)]
+   ;; Since (token-=) returns '=, just return the symbol directly
+   [(:or "=" "+" "-" "*" "/" "^" ) (string->symbol lexeme)]
+   ["(" 'OP]
+   [")" 'CP]
+   ["{" 'OB]
+   ["}" 'CB]
+   ["[" 'OSB]
+   ["]" 'CSB]
+   [";" 'SEMI]
+   [(:or "int" "void") 'TYPE]
+   ["sin" (token-FNCT sin)]
+   [(:+ (:or lower-letter upper-letter)) (token-VAR (string->symbol lexeme))]
+   [(:+ digit) (token-NUM (string->number lexeme))]
+   [(:: (:+ digit) #\. (:* digit)) (token-NUM (string->number lexeme))]))
+
+(define cminus
+  (parser
+   (start start)
+   (end newline EOF)
+   (tokens value-tokens op-tokens)
+   (error (lambda (a b c) (void)))
+   (precs (right =)
+          (left - +)
+          (left * /)
+          (left NEG)
+          (right ^))
+   (grammar
+    (start [() #f]
+           ;; If there is an error, ignore everything before the error
+           ;; and try to start over right after the error
+           [(error start) $2]
+           [(program) $1])
+    (var-dec [(type-spec VAR SEMI) (printf "")]
+             [(type-spec VAR OSB NUM CSB)(printf "")])
+    (declaration [(var-dec)(printf "")]
+                 [(fun-dec)(printf "")])
+    (declaration-list [(declaration-list declaration)(printf "")]
+                      [(declaration)(printf "")])
+    (program [(declaration-list) (printf "")])
+    )))

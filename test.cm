@@ -1,4 +1,9 @@
 void main(void)
 {
-    x = 5
+    int x;
+    int y;
+    int z;
+    x = 42;
+    y = 3;
+    z = x + y;
 }

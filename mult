@@ -1,0 +1,21 @@
+Multiply 40 and 41, store in 42/43
+
+     txa            8A
+     pha            48
+     lda #$00       A5 00
+     sta $43        85 
+     ldx #$08       A2 08
+MainLoop:
+     lsr $40        46
+     bcc NoCarry    90
+     clc            18
+     adc $41        61
+NoCarry:
+     ror a          66
+     ror $42        66
+     dex            CA
+     bne MainLoop   D0
+     sta $43        85
+     pla            68
+     tax            AA
+     rts            60
