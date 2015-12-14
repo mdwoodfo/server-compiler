@@ -124,14 +124,14 @@
            ;; and try to start over right after the error
            [(error start) $2]
            [(program) $1])
-    (arg-list [(arg-list COM exp) (printflush "arglist->arg-list, exp\n")]
-              [(exp) (printflush "arg-list->exp\n")])
-    (args [(arg-list) (printflush "args->arg-list\n")]
-          [() (printflush "args->EMPTY\n")])
-    (call [(VAR OP args CP) (printflush "call->VAR(args)\n")])
-    (factor [(OP exp CP) (begin (printflush "factor->(exp)\n") $2)]
-            [(var) (begin (printflush "factor->var\n") $1)]
-            [(call) (printflush "factor->call\n")]
+    (arg-list [(arg-list COM exp) (printflush "")]
+              [(exp) (printflush "")])
+    (args [(arg-list) (printflush "")]
+          [() (printflush "")])
+    (call [(VAR OP args CP) (printflush "")])
+    (factor [(OP exp CP) $2]
+            [(var) (begin (printflush "") $1)]
+            [(call) (printflush "")]
             [(NUM) (let-values ([(lo hi hexLo hexHi) (int->16bit $1)])
                   ;; Assembly Code
                   ;; Push number onto stack
@@ -140,17 +140,12 @@
 ;                  (printflush "LDA #$~a~n" hexLo)
 ;                  (printflush "PHA~n")
                   (printflush "A9 ~a 48 A9 ~a 48 " hexHi hexLo)
-                     (printflush "$1=~a NUM\n" $1)
                   $1)
                 ])
-    (mulop [(*) (printflush "mulop->*\n")]
-           [(/) (printflush "mulop->/\n")])
-    (term [(term mulop factor) (printflush "term->term-mulop-factor\n")]
-          [(factor) (begin (printflush "term->factor ~a\n" $1) $1)])
-    (addop [(+) (printflush "addop->+\n")]
-           [(-) (printflush "addop->-\n")])
-    (add-exp [(add-exp addop term) (printflush "addexp->add-exp-addop-term\n")]
-             [(term) (printflush "add-exp->term\n")])
+    (mulop [(*) (printflush "")]
+           [(/) (printflush "")])
+    (term [(term mulop factor) (printflush "")]
+          [(factor) $1])
     (subexp [(term - term) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])
                         ;; Assembly Code
                         ;; Pull Right-hand expression off Stack
@@ -186,8 +181,8 @@
 ;                        (printflush "PHA~n")
                         (printflush "48 ")
                         (- $1 $3))])
-    (subtraction-exp [(subtraction-exp - subexp)(printflush "subtraction-exp->subtraction-exp - subexp\n")]
-                  [(subexp) (begin (printflush "subtraction-exp->subexp\n") $1)])
+    (subtraction-exp [(subtraction-exp - subexp)(printflush "")]
+                  [(subexp) $1])
     (addexp [(term + term) (let-values ([(lo hi hexLo hexHi) (int->16bit ADD)])
                         ;; Assembly Code
                         ;; Pull Right-hand expression off Stack
@@ -216,19 +211,19 @@
                                 (8bit->hex MATH3HI)
                                 (8bit->hex MATH3LO))
                         (+ $1 $3))])
-    (addition-exp [(addexp)(begin (printflush "addition-exp->addexp\n") $1)]
-                  [(addition-exp + term) (begin (printflush "addition-exp->addition-exp + addexp\n") (+ $1 $3))])
-    (addsub [(addition-exp) (begin (printflush "addsub->addition-exp\n") $1)]
-            [(subtraction-exp) (begin (printflush "addsub->subtraction-exp\n") $1)]
-            [(term) (begin (printflush "addsub->term\n") $1)])
+    (addition-exp [(addexp) $1]
+                  [(addition-exp + term) (+ $1 $3)])
+    (addsub [(addition-exp) $1]
+            [(subtraction-exp) $1]
+            [(term) $1])
     (relop [(LTE) (printflush "")]
            [(LT) (printflush "")]
            [(GT) (printflush "")]
            [(GTE) (printflush "")]
            [(EE) (printflush "")]
            [(NE) (printflush "")])
-    (simple-exp [(addsub relop addsub) (printflush "simple-exp->addsub_relop_addsub\n")]
-                [(addsub) (begin (printflush "simple-exp->addsub\n") $1)])
+    (simple-exp [(addsub relop addsub) (printflush "")]
+                [(addsub) $1])
     (var [(VAR) (begin
               ;; Assembly Code
               ;; Retrieve variable value from Symbol Table
@@ -241,15 +236,13 @@
 ;                  (printflush "DEX~n")
 ;                  (printflush "LDA *$~a,X~n" (8bit->hex VARS))
 ;                  (printflush "PHA~n")
-              (printflush "A2 ~a E8 E8 B5 ~a 48 CA B5 ~a 48\n" 
+              (printflush "A2 ~a E8 E8 B5 ~a 48 CA B5 ~a 48 " 
                       (8bit->hex (symbol->var-lookup $1))
                       (8bit->hex VARS)
                       (8bit->hex VARS))
-              (printflush "(hash-ref vars ~a -1)\n" (hash-ref vars $1 -1))
               (hash-ref vars $1 -1))]
-         [(VAR OSB exp CSB) (printflush "var->VAR(exp)\n")])
+         [(VAR OSB exp CSB) (printflush "")])
     (exp [(VAR EQ exp) (let-values ([(lo hi hexLo hexHi) (int->16bit $3)])
-                         (printflush "VAR=~a exp=~a\n" $1 $3)
                         ;; Assembly Code
                         ;; Pull right-hand expression off Stack
 ;                        (printflush "PLA~n")
@@ -281,40 +274,40 @@
                     (hash-set! vars $1 $3)
                     $3)
                       ]
-         [(simple-exp) (begin (printflush "exp->simpleexp\n") $1)])
+         [(simple-exp) $1])
     (return-stmt [(RETURN SEMI) (printflush "")]
                  [(RETURN exp SEMI) (printflush "")])
     (iteration-stmt [(WHILE OP exp CP stmt) (printflush "")])
     ;(selection-stmt [(IF OP exp CP stmt) (printflush "")]
     ;                [(IF OP exp CP stmt ELSE stmt) (printflush "")])
-    (exp-stmt [(exp SEMI) (printflush "exp-stmt->exp;\n")]
-              [(SEMI) (printflush "exp-stmt->;\n")])
-    (stmt [(exp-stmt) (printflush "stmt->expstmt\n")]
-          [(compound-stmt) (printflush "stmt->compoundstmt\n")]
+    (exp-stmt [(exp SEMI) (printflush "")]
+              [(SEMI) (printflush "")])
+    (stmt [(exp-stmt) (printflush "")]
+          [(compound-stmt) (printflush "")]
     ;      [(selection-stmt) (printflush "")]
           [(iteration-stmt) (printflush "")]
           [(return-stmt) (printflush "")])
-    (stmt-list [(stmt-list stmt) (printflush "stmtlist->stmtlist-stmt\n")]
-               [() (printflush "stmtlist->EMPTY\n")])
-    (local-dec [(local-dec var-dec) (printflush "local-dec->local-dec_var-dec\n")]
-               [() (printflush "local-dec->EMPTY\n")])
-    (compound-stmt [(OB local-dec stmt-list CB) (printflush "compound-stmt->{local-dec_stmt-list}\n")])
-    (param [(type VAR) (printflush "param->type-VAR\n")]
-           [(type VAR OSB CSB) (printflush "param->type-VAR[]\n")])
-    (param-list [(param-list COM param) (printflush "param-list->param-list,param\n")]
-                [(param) (printflush "param-list->param\n")])
-    (params [(param-list) (printflush "params->param-list\n")]
-            [(VOID) (printflush "params->void\n")])
-    (fun-dec [(type VAR OP params CP compound-stmt) (printflush "fun-dec->type_VAR(params)_compount-stmt\n")])
-    (type [(INT) (printflush "type->INT\n")]
-          [(VOID) (printflush "type->VOID\n")])
-    (var-dec [(type VAR SEMI) (begin (hash-set! vars $2 0) (printflush "var-dec->type_VAR_SEMI\n") $1)]
-             [(type VAR OSB NUM CSB) (printflush "var-dec->type_VAR[NUM]\n")])
-    (declaration [(var-dec) (printflush "declaration->var-dec\n")]
-                 [(fun-dec) (printflush "declaration->fun-dec\n")])
-    (declaration-list [(declaration-list declaration) (printflush "declaration-list->declaration-list_declaration\n")]
-                      [(declaration) (printflush "declaration-list->declaration\n")])
-    (program [(declaration-list) (printflush "prog->dec-list\n")])
+    (stmt-list [(stmt-list stmt) (printflush "")]
+               [() (printflush "")])
+    (local-dec [(local-dec var-dec) (printflush "")]
+               [() (printflush "")])
+    (compound-stmt [(OB local-dec stmt-list CB) (printflush "")])
+    (param [(type VAR) (printflush "")]
+           [(type VAR OSB CSB) (printflush "")])
+    (param-list [(param-list COM param) (printflush "")]
+                [(param) (printflush "")])
+    (params [(param-list) (printflush "")]
+            [(VOID) (printflush "")])
+    (fun-dec [(type VAR OP params CP compound-stmt) (printflush "")])
+    (type [(INT) (printflush "")]
+          [(VOID) (printflush "")])
+    (var-dec [(type VAR SEMI) (begin (hash-set! vars $2 0) (printflush "") $1)]
+             [(type VAR OSB NUM CSB) (printflush "")])
+    (declaration [(var-dec) (printflush "")]
+                 [(fun-dec) (printflush "")])
+    (declaration-list [(declaration-list declaration) (printflush "")]
+                      [(declaration) (printflush "")])
+    (program [(declaration-list) (printflush "")])
     )))
 
 ;; -------------------------------
