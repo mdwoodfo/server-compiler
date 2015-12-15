@@ -19,7 +19,8 @@
     (lambda ()
       (do ((inp (read-line ip) (read-line ip)))
         ((eof-object? inp))
-        (displayln inp)))))
+        (displayln inp)))
+    #:exists 'replace))
 
 (compile)
 
