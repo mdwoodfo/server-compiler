@@ -17,11 +17,11 @@
 ;; Zero Page Locations
 ;; -------------------
 ;; Math Variables
-(define MATH1LO #x10) ;; augend, subtrahend
+(define MATH1LO #x10) ;; augend, subtrahend, multiplier, dividend
 (define MATH1HI #x11) 
-(define MATH2LO #x12) ;; addend, minuend
+(define MATH2LO #x12) ;; addend, minuend, multiplicand, divisor
 (define MATH2HI #x13)
-(define MATH3LO #x14) ;; sum, difference
+(define MATH3LO #x14) ;; sum, difference, product, quotient
 (define MATH3HI #x15)
 (define MATH4LO #x16)
 (define MATH4HI #x17)
@@ -133,84 +133,139 @@
             [(var) (begin (printflush "") $1)]
             [(call) (printflush "")]
             [(NUM) (let-values ([(lo hi hexLo hexHi) (int->16bit $1)])
-                  ;; Assembly Code
-                  ;; Push number onto stack
-;                  (printflush "LDA #$~a~n" hexHi)
-;                  (printflush "PHA~n")
-;                  (printflush "LDA #$~a~n" hexLo)
-;                  (printflush "PHA~n")
-                  (printflush "A9 ~a 48 A9 ~a 48 " hexHi hexLo)
-                  $1)
-                ])
-    (mulop [(*) (printflush "")]
-           [(/) (printflush "")])
-    (term [(term mulop factor) (printflush "")]
-          [(factor) $1])
+                     ;; Assembly Code
+                     ;; Push number onto stack
+                     ;                  (printflush "LDA #$~a~n" hexHi)
+                     ;                  (printflush "PHA~n")
+                     ;                  (printflush "LDA #$~a~n" hexLo)
+                     ;                  (printflush "PHA~n")
+                     (printflush "A9 ~a 48 A9 ~a 48 " hexHi hexLo)
+                     $1)
+                   ])
+    (muldiv [(multiplication-exp) (begin (printflush "") $1)]
+            [(division-exp) (begin (printflush "") $1)]
+            [(factor) (begin (printflush "") $1)])
+    (multiplication-exp [(multiplication-exp * factor) (begin (printflush "") (* $1 $3))]
+                        [(mulexp) (begin (printflush "") $1)])
+    (division-exp [(division-exp * factor) (begin (printflush "") (/ $1 $3))]
+                  [(divexp) (begin (printflush "") $1)])
+    (mulexp [(factor * factor) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH2LO))
+                                 (printflush "85 ~a " (8bit->hex MATH2LO))
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH2HI))
+                                 (printflush "85 ~a " (8bit->hex MATH2HI))
+                                 ;; Pull Left-hand expression off Stack
+                                 ;; Store in Subtrahend workspace
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH1LO))
+                                 (printflush "85 ~a " (8bit->hex MATH1LO))
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH1HI))
+                                 (printflush "85 ~a " (8bit->hex MATH1HI))
+                                 (printflush "A9 00 85 ~a 85 ~a A2 10 "
+                                             (8bit->hex MATH4LO) (8bit->hex MATH4HI))
+                                 (printflush "46 ~a 66 ~a 90 0B A5 ~a 18 65 ~a 85 ~a A5 ~a 65 ~a "
+                                             (8bit->hex MATH2HI)
+                                             (8bit->hex MATH2LO)
+                                             (8bit->hex MATH4LO)
+                                             (8bit->hex MATH1LO)
+                                             (8bit->hex MATH4LO)
+                                             (8bit->hex MATH4HI)
+                                             (8bit->hex MATH1HI))
+                                 (printflush "6A 85 ~a 66 ~a 66 ~a 66 ~a CA D0 E3 "
+                                             (8bit->hex MATH4HI)
+                                             (8bit->hex MATH4LO)
+                                             (8bit->hex MATH3HI)
+                                             (8bit->hex MATH3LO))
+                                 ;; Push product onto Stack
+                                 (printflush "A5 ~a 48 A5 ~a 48 " 
+                                             (8bit->hex MATH3HI)
+                                             (8bit->hex MATH3LO))
+                                 ;(8bit->hex MATH4HI)
+                                 ;(8bit->hex MATH4LO))
+                                 (* $1 $3))])
+    (divexp [(factor / factor) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])
+                                 (printflush "A9 00 85 ~a 85 ~a A2 10 "
+                                             (8bit->hex MATH4LO) (8bit->hex MATH4HI))
+                                 (printflush "C8 06 ~a 26 ~a 90 XX 66 ~a 66 ~a "
+                                             (8bit->hex MATH2LO)
+                                             (8bit->hex MATH2HI)
+                                             (8bit->hex MATH2HI)
+                                             (8bit->hex MATH2LO))
+                                 (printflush "")
+                                 (quotient $1 $3))])
+    (term [(muldiv) (begin (printflush "") $1)])
     (subexp [(term - term) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])
-                        ;; Assembly Code
-                        ;; Pull Right-hand expression off Stack
-                        ;; Store in Minuend workspace
-;                        (printflush "PLA~n")
-                        (printflush "68 ")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH2LO))
-                        (printflush "85 ~a " (8bit->hex MATH2LO))
-;                        (printflush "PLA~n")
-                        (printflush "68 ")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH2HI))
-                        (printflush "85 ~a " (8bit->hex MATH2HI))
-                        ;; Pull Left-hand expression off Stack
-                        ;; Store in Subtrahend workspace
-;                        (printflush "PLA~n")
-                        (printflush "68 ")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH1LO))
-                        (printflush "85 ~a " (8bit->hex MATH1LO))
-;                        (printflush "PLA~n")
-                        (printflush "68 ")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH1HI))
-                        (printflush "85 ~a " (8bit->hex MATH1HI))
-                        ;; Call SUBTRACT subroutine
-;                        (printflush "JSR $~a~a~n" hexHi hexLo)
-                        (printflush "20 ~a ~a " hexLo hexHi) ;; <--- byte reversal!!
-                        ;; Push difference onto Stack
-;                        (printflush "LDA *$~a~n" (8bit->hex MATH3HI))
-                        (printflush "A5 ~a " (8bit->hex MATH3HI))
-;                        (printflush "PHA~n")
-                        (printflush "48 ")
-;                        (printflush "LDA *$~a~n" (8bit->hex MATH3LO))
-                        (printflush "A5 ~a " (8bit->hex MATH3LO))
-;                        (printflush "PHA~n")
-                        (printflush "48 ")
-                        (- $1 $3))])
-    (subtraction-exp [(subtraction-exp - subexp)(printflush "")]
-                  [(subexp) $1])
+                             ;; Assembly Code
+                             ;; Pull Right-hand expression off Stack
+                             ;; Store in Minuend workspace
+                             ;                        (printflush "PLA~n")
+                             (printflush "68 ")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH2LO))
+                             (printflush "85 ~a " (8bit->hex MATH2LO))
+                             ;                        (printflush "PLA~n")
+                             (printflush "68 ")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH2HI))
+                             (printflush "85 ~a " (8bit->hex MATH2HI))
+                             ;; Pull Left-hand expression off Stack
+                             ;; Store in Subtrahend workspace
+                             ;                        (printflush "PLA~n")
+                             (printflush "68 ")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH1LO))
+                             (printflush "85 ~a " (8bit->hex MATH1LO))
+                             ;                        (printflush "PLA~n")
+                             (printflush "68 ")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH1HI))
+                             (printflush "85 ~a " (8bit->hex MATH1HI))
+                             ;; Call SUBTRACT subroutine
+                             ;                        (printflush "JSR $~a~a~n" hexHi hexLo)
+                             (printflush "20 ~a ~a " hexLo hexHi) ;; <--- byte reversal!!
+                             ;; Push difference onto Stack
+                             ;                        (printflush "LDA *$~a~n" (8bit->hex MATH3HI))
+                             (printflush "A5 ~a " (8bit->hex MATH3HI))
+                             ;                        (printflush "PHA~n")
+                             (printflush "48 ")
+                             ;                        (printflush "LDA *$~a~n" (8bit->hex MATH3LO))
+                             (printflush "A5 ~a " (8bit->hex MATH3LO))
+                             ;                        (printflush "PHA~n")
+                             (printflush "48 ")
+                             (- $1 $3))])
+    (subtraction-exp [(subtraction-exp - term) (begin (printflush "") (- $1 $3))]
+                     [(subexp) (begin (printflush "") $1)])
     (addexp [(term + term) (let-values ([(lo hi hexLo hexHi) (int->16bit ADD)])
-                        ;; Assembly Code
-                        ;; Pull Right-hand expression off Stack
-                        ;; Store in Addend workspace
-;                        (printflush "PLA~n")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH2LO))
-;                        (printflush "PLA~n")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH2HI))
-                        (printflush "68 85 ~a 68 85 ~a " 
-                                (8bit->hex MATH2LO)
-                                (8bit->hex MATH2HI))
-                        ;; Pull Left-hand expression off Stack
-                        ;; Store in Augend workspace
-;                        (printflush "PLA~n")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH1LO))
-;                        (printflush "PLA~n")
-;                        (printflush "STA *$~a~n" (8bit->hex MATH1HI))
-                        (printflush "68 85 ~a 68 85 ~a " 
-                                (8bit->hex MATH1LO)
-                                (8bit->hex MATH1HI))
-                        ;; Call ADD subroutine
-;                        (printflush "JSR $~a~a~n" hexHi hexLo)
-                        (printflush "20 ~a ~a " hexLo hexHi) ;; <==== byte reversal!!!
-                        ;; Push sum onto Stack
-                        (printflush "A5 ~a 48 A5 ~a 48 " 
-                                (8bit->hex MATH3HI)
-                                (8bit->hex MATH3LO))
-                        (+ $1 $3))])
+                             ;; Assembly Code
+                             ;; Pull Right-hand expression off Stack
+                             ;; Store in Addend workspace
+                             ;                        (printflush "PLA~n")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH2LO))
+                             ;                        (printflush "PLA~n")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH2HI))
+                             (printflush "68 85 ~a 68 85 ~a " 
+                                         (8bit->hex MATH2LO)
+                                         (8bit->hex MATH2HI))
+                             ;; Pull Left-hand expression off Stack
+                             ;; Store in Augend workspace
+                             ;                        (printflush "PLA~n")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH1LO))
+                             ;                        (printflush "PLA~n")
+                             ;                        (printflush "STA *$~a~n" (8bit->hex MATH1HI))
+                             (printflush "68 85 ~a 68 85 ~a " 
+                                         (8bit->hex MATH1LO)
+                                         (8bit->hex MATH1HI))
+                             ;; Call ADD subroutine
+                             ;                        (printflush "JSR $~a~a~n" hexHi hexLo)
+                             (printflush "20 ~a ~a " hexLo hexHi) ;; <==== byte reversal!!!
+                             ;; Push sum onto Stack
+                             (printflush "A5 ~a 48 A5 ~a 48 " 
+                                         (8bit->hex MATH3HI)
+                                         (8bit->hex MATH3LO))
+                             (+ $1 $3))])
     (addition-exp [(addexp) $1]
                   [(addition-exp + term) (+ $1 $3)])
     (addsub [(addition-exp) $1]
@@ -225,55 +280,55 @@
     (simple-exp [(addsub relop addsub) (printflush "")]
                 [(addsub) $1])
     (var [(VAR) (begin
-              ;; Assembly Code
-              ;; Retrieve variable value from Symbol Table
-              ;; Push value onto Stack
-;                  (printflush "LDX #$~a~n" (8bit->hex (symbol->var-lookup $1)))
-;                  (printflush "INX~n")
-;                  (printflush "INX~n")
-;                  (printflush "LDA *$~a,X~n" (8bit->hex VARS))
-;                  (printflush "PHA~n")
-;                  (printflush "DEX~n")
-;                  (printflush "LDA *$~a,X~n" (8bit->hex VARS))
-;                  (printflush "PHA~n")
-              (printflush "A2 ~a E8 E8 B5 ~a 48 CA B5 ~a 48 " 
-                      (8bit->hex (symbol->var-lookup $1))
-                      (8bit->hex VARS)
-                      (8bit->hex VARS))
-              (hash-ref vars $1 -1))]
+                  ;; Assembly Code
+                  ;; Retrieve variable value from Symbol Table
+                  ;; Push value onto Stack
+                  ;                  (printflush "LDX #$~a~n" (8bit->hex (symbol->var-lookup $1)))
+                  ;                  (printflush "INX~n")
+                  ;                  (printflush "INX~n")
+                  ;                  (printflush "LDA *$~a,X~n" (8bit->hex VARS))
+                  ;                  (printflush "PHA~n")
+                  ;                  (printflush "DEX~n")
+                  ;                  (printflush "LDA *$~a,X~n" (8bit->hex VARS))
+                  ;                  (printflush "PHA~n")
+                  (printflush "A2 ~a E8 E8 B5 ~a 48 CA B5 ~a 48 " 
+                              (8bit->hex (symbol->var-lookup $1))
+                              (8bit->hex VARS)
+                              (8bit->hex VARS))
+                  (hash-ref vars $1 -1))]
          [(VAR OSB exp CSB) (printflush "")])
     (exp [(VAR EQ exp) (let-values ([(lo hi hexLo hexHi) (int->16bit $3)])
-                        ;; Assembly Code
-                        ;; Pull right-hand expression off Stack
-;                        (printflush "PLA~n")
-;                        (printflush "STA *$~a~n" (8bit->hex WORK1LO))
-;                        (printflush "PLA~n")
-;                        (printflush "STA *$~a~n" (8bit->hex WORK1HI))
-                    (printflush "68 85 ~a 68 85 ~a " 
-                            (8bit->hex WORK1LO)
-                            (8bit->hex WORK1HI))
-                        ;; Lookup variable location in Symbol Table
-                        ;; Store expression value in variable
-                        ;; Push value onto Stack
-;                        (printflush "LDX #$~a~n" (8bit->hex (symbol->var-lookup $1)))
-;                        (printflush "INX~n")
-;                        (printflush "INX~n")
-;                        (printflush "LDA *$~a~n" (8bit->hex WORK1HI))
-;                        (printflush "STA *$~a,X~n" (8bit->hex VARS))
-;                        (printflush "PHA~n")
-;                        (printflush "DEX~n")
-;                        (printflush "LDA *$~a~n" (8bit->hex WORK1LO))
-;                        (printflush "STA *$~a,X~n" (8bit->hex VARS))
-;                        (printflush "PHA~n")
-                    (printflush "A2 ~a E8 E8 A5 ~a 95 ~a 48 CA A5 ~a 95 ~a 48 " 
-                            (8bit->hex (symbol->var-lookup $1))
-                            (8bit->hex WORK1HI)
-                            (8bit->hex VARS)
-                            (8bit->hex WORK1LO)
-                            (8bit->hex VARS))
-                    (hash-set! vars $1 $3)
-                    $3)
-                      ]
+                         ;; Assembly Code
+                         ;; Pull right-hand expression off Stack
+                         ;                        (printflush "PLA~n")
+                         ;                        (printflush "STA *$~a~n" (8bit->hex WORK1LO))
+                         ;                        (printflush "PLA~n")
+                         ;                        (printflush "STA *$~a~n" (8bit->hex WORK1HI))
+                         (printflush "68 85 ~a 68 85 ~a " 
+                                     (8bit->hex WORK1LO)
+                                     (8bit->hex WORK1HI))
+                         ;; Lookup variable location in Symbol Table
+                         ;; Store expression value in variable
+                         ;; Push value onto Stack
+                         ;                        (printflush "LDX #$~a~n" (8bit->hex (symbol->var-lookup $1)))
+                         ;                        (printflush "INX~n")
+                         ;                        (printflush "INX~n")
+                         ;                        (printflush "LDA *$~a~n" (8bit->hex WORK1HI))
+                         ;                        (printflush "STA *$~a,X~n" (8bit->hex VARS))
+                         ;                        (printflush "PHA~n")
+                         ;                        (printflush "DEX~n")
+                         ;                        (printflush "LDA *$~a~n" (8bit->hex WORK1LO))
+                         ;                        (printflush "STA *$~a,X~n" (8bit->hex VARS))
+                         ;                        (printflush "PHA~n")
+                         (printflush "A2 ~a E8 E8 A5 ~a 95 ~a 48 CA A5 ~a 95 ~a 48 " 
+                                     (8bit->hex (symbol->var-lookup $1))
+                                     (8bit->hex WORK1HI)
+                                     (8bit->hex VARS)
+                                     (8bit->hex WORK1LO)
+                                     (8bit->hex VARS))
+                         (hash-set! vars $1 $3)
+                         $3)
+                       ]
          [(simple-exp) $1])
     (return-stmt [(RETURN SEMI) (printflush "")]
                  [(RETURN exp SEMI) (printflush "")])
@@ -284,7 +339,7 @@
               [(SEMI) (printflush "")])
     (stmt [(exp-stmt) (printflush "")]
           [(compound-stmt) (printflush "")]
-    ;      [(selection-stmt) (printflush "")]
+          ;      [(selection-stmt) (printflush "")]
           [(iteration-stmt) (printflush "")]
           [(return-stmt) (printflush "")])
     (stmt-list [(stmt-list stmt) (printflush "")]
@@ -351,7 +406,7 @@
 
 ;; run the calculator on the given input-port       
 (define (comp ip op)
-;  (display "*=$D000")
+  ;  (display "*=$D000")
   (current-output-port op)
   (display "D000") ;; NOT LITTLE-ENDIAN!!!!!
   (newline)
@@ -362,25 +417,25 @@
                 (when result
                   ;; Assembly Code
                   ;; EOL pull last value off stack and print result
-;                  (printflush "PLA~n")
-;                  (printflush "STA *$~a~n" (8bit->hex IOINTL))
-;                  (printflush "PLA~n")
-;                  (printflush "STA *$~a~n" (8bit->hex IOINTH))
-;                  (printflush "STA *$~a~n" (8bit->hex IOFROB))
+                  ;                  (printflush "PLA~n")
+                  ;                  (printflush "STA *$~a~n" (8bit->hex IOINTL))
+                  ;                  (printflush "PLA~n")
+                  ;                  (printflush "STA *$~a~n" (8bit->hex IOINTH))
+                  ;                  (printflush "STA *$~a~n" (8bit->hex IOFROB))
                   (printflush "68 85 ~a 68 85 ~a 85 ~a " 
-                          (8bit->hex IOINTL) 
-                          (8bit->hex IOINTH)
-                          (8bit->hex IOFROB))
+                              (8bit->hex IOINTL) 
+                              (8bit->hex IOINTH)
+                              (8bit->hex IOFROB))
                   ;; Scheme result
                   ;; (printflush "~a\n" result)
                   (one-line))))))
     (one-line))
-;  (display "HLT") ;; Hex 02
+  ;  (display "HLT") ;; Hex 02
   (display "02") ;; Hex 02
   (newline)
-;  (display ".end")
+  ;  (display ".end")
   (display "FFFFFF") ;; Hex 02
-;  (newline)
+  ;  (newline)
   (flush-output op)
   )
 

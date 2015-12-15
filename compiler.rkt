@@ -143,14 +143,16 @@
                      (printflush "$1=~a NUM\n" $1)
                   $1)
                 ])
-    (mulop [(*) (printflush "mulop->*\n")]
-           [(/) (printflush "mulop->/\n")])
-    (term [(term mulop factor) (printflush "term->term-mulop-factor\n")]
-          [(factor) (begin (printflush "term->factor ~a\n" $1) $1)])
-    (addop [(+) (printflush "addop->+\n")]
-           [(-) (printflush "addop->-\n")])
-    (add-exp [(add-exp addop term) (printflush "addexp->add-exp-addop-term\n")]
-             [(term) (printflush "add-exp->term\n")])
+    (muldiv [(multiplication-exp) (begin (printflush "muldiv->multiplication-exp\n") $1)]
+            [(division-exp) (begin (printflush "muldiv->division-exp\n") $1)]
+            [(factor) (begin (printflush "muldiv->factor\n") $1)])
+    (multiplication-exp [(multiplication-exp * factor) (begin (printflush "multiplication-exp->multiplication-exp * factor\n") (* $1 $3))]
+                  [(mulexp) (begin (printflush "multiplication-exp->mulexp\n") $1)])
+    (division-exp [(division-exp * factor) (begin (printflush "division-exp->division-exp / factor\n") (/ $1 $3))]
+                  [(divexp) (begin (printflush "division-exp->divexp\n") $1)])
+    (mulexp [(factor * factor) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)]) (printflush "mulexp->factor * factor") (* $1 $3))])
+    (divexp [(factor / factor) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)]) (printflush "divexp->factor / factor") (quotient $1 $3))])
+    (term [(muldiv) (begin (printflush "term->muldiv\n") $1)])
     (subexp [(term - term) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])
                         ;; Assembly Code
                         ;; Pull Right-hand expression off Stack
@@ -186,7 +188,7 @@
 ;                        (printflush "PHA~n")
                         (printflush "48 ")
                         (- $1 $3))])
-    (subtraction-exp [(subtraction-exp - subexp)(printflush "subtraction-exp->subtraction-exp - subexp\n")]
+    (subtraction-exp [(subtraction-exp - term) (begin (printflush "subtraction-exp->subtraction-exp - subexp\n") (- $1 $3))]
                   [(subexp) (begin (printflush "subtraction-exp->subexp\n") $1)])
     (addexp [(term + term) (let-values ([(lo hi hexLo hexHi) (int->16bit ADD)])
                         ;; Assembly Code
