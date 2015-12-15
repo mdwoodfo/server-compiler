@@ -198,7 +198,25 @@
                                              (8bit->hex MATH2HI)
                                              (8bit->hex MATH2HI)
                                              (8bit->hex MATH2LO))
-                                 (printflush "")
+                                 (printflush "88 06 ~a 26 ~a 38 A5 ~a E5 ~a 90 XX "
+                                             (8bit->hex MATH3LO)
+                                             (8bit->hex MATH3HI)
+                                             (8bit->hex MATH1HI)
+                                             (8bit->hex MATH2HI))
+                                 (printflush "85 ~a A5 ~a E5 90 XX "
+                                             (8bit->hex WORK1LO)
+                                             (8bit->hex MATH1HI)
+                                             (8bit->hex MATH2HI))
+                                 (printflush "85 ~a A5 ~a 85 ~a A9 01 05 ~a 85 ~a "
+                                             (8bit->hex MATH1LO)
+                                             (8bit->hex WORK1LO)
+                                             (8bit->hex MATH1HI)
+                                             (8bit->hex WORK1LO)
+                                             (8bit->hex MATH3LO)
+                                             (8bit->hex MATH3LO))
+                                 (printflush "46 ~a 66 ~a C0 01 10 XX "
+                                             (8bit->hex MATH2HI)
+                                             (8bit->hex MATH2HI))
                                  (quotient $1 $3))])
     (term [(muldiv) (begin (printflush "") $1)])
     (subexp [(term - term) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])
