@@ -192,31 +192,58 @@
                                  (* $1 $3))])
     (divexp [(factor / factor) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])
                                  (printflush "A9 00 85 ~a 85 ~a A2 10 "
-                                             (8bit->hex MATH4LO) (8bit->hex MATH4HI))
-                                 (printflush "C8 06 ~a 26 ~a 90 XX 66 ~a 66 ~a "
+                                             (8bit->hex MATH3LO) (8bit->hex MATH3HI))
+                                 (printflush "A9 00 85 ~a 85 ~a A2 10 "
+                                             (8bit->hex MATH2LO) (8bit->hex MATH2HI))
+                                 (printflush "A9 00 85 ~a 85 ~a A2 10 "
+                                             (8bit->hex MATH1LO) (8bit->hex MATH1HI))
+                                 (printflush "A9 00 85 ~a 85 ~a A2 10 "
+                                             (8bit->hex WORK1LO) (8bit->hex WORK1HI))
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH2LO))
+                                 (printflush "85 ~a " (8bit->hex MATH2LO))
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH2HI))
+                                 (printflush "85 ~a " (8bit->hex MATH2HI))
+                                 ;; Pull Left-hand expression off Stack
+                                 ;; Store in Subtrahend workspace
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH1LO))
+                                 (printflush "85 ~a " (8bit->hex MATH1LO))
+                                 ;                        (printflush "PLA~n")
+                                 (printflush "68 ")
+                                 ;                        (printflush "STA *$~a~n" (8bit->hex MATH1HI))
+                                 (printflush "85 ~a " (8bit->hex MATH1HI))
+                                 (printflush "C8 06 ~a 26 ~a 90 F9 66 ~a 66 ~a "
                                              (8bit->hex MATH2LO)
                                              (8bit->hex MATH2HI)
                                              (8bit->hex MATH2HI)
                                              (8bit->hex MATH2LO))
-                                 (printflush "88 06 ~a 26 ~a 38 A5 ~a E5 ~a 90 XX "
+                                 (printflush "88 06 ~a 26 ~a 38 A5 ~a E5 ~a 90 14 "
                                              (8bit->hex MATH3LO)
                                              (8bit->hex MATH3HI)
                                              (8bit->hex MATH1HI)
                                              (8bit->hex MATH2HI))
-                                 (printflush "85 ~a A5 ~a E5 90 XX "
+                                 (printflush "85 ~a A5 ~a E5 ~a 90 0C "
                                              (8bit->hex WORK1LO)
-                                             (8bit->hex MATH1HI)
-                                             (8bit->hex MATH2HI))
+                                             (8bit->hex MATH1LO)
+                                             (8bit->hex MATH2LO))
                                  (printflush "85 ~a A5 ~a 85 ~a A9 01 05 ~a 85 ~a "
                                              (8bit->hex MATH1LO)
                                              (8bit->hex WORK1LO)
                                              (8bit->hex MATH1HI)
-                                             (8bit->hex WORK1LO)
                                              (8bit->hex MATH3LO)
                                              (8bit->hex MATH3LO))
-                                 (printflush "46 ~a 66 ~a C0 01 10 XX "
+                                 (printflush "46 ~a 66 ~a C0 01 10 D8 "
                                              (8bit->hex MATH2HI)
-                                             (8bit->hex MATH2HI))
+                                             (8bit->hex MATH2LO))
+                                 ;; Push product onto Stack
+                                 (printflush "A5 ~a 48 A5 ~a 48 " 
+                                             (8bit->hex MATH3HI)
+                                             (8bit->hex MATH3LO))
                                  (quotient $1 $3))])
     (term [(muldiv) (begin (printflush "") $1)])
     (subexp [(term - term) (let-values ([(lo hi hexLo hexHi) (int->16bit SUBTRACT)])

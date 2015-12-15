@@ -1,0 +1,41 @@
+.shift:   
+   INY
+   
+   ASL DIVSOR         
+   ROL DIVSOR+1
+   BCC .shift
+   
+   ROR DIVSOR+1
+   ROR DIVSOR
+
+.divloop:
+   DEY
+   ASL QUO
+   ROL QUO+1   
+   SEC
+   
+   LDA DIVEND+1
+   SBC DIVSOR+1
+   BCC .skip
+   
+   STA VAR         
+   LDA DIVEND
+   SBC DIVSOR
+   BCC .skip      
+   
+   STA DIVEND
+   LDA VAR
+   STA DIVEND+1
+   
+   LDA #$01
+   ORA QUO
+   STA QUO
+
+.skip:   
+   LSR DIVSOR+1
+   ROR DIVSOR
+      
+   CPY #$01      
+   BPL .divloop
+
+   RTS
